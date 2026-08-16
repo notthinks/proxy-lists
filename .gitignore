@@ -1,0 +1,9 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# hasil scan (di-commit via workflow, jangan taruh output/ asli)
+output/
+*.log
+.DS_Store

@@ -1,0 +1,49 @@
+name: hourly-proxy-scan
+
+on:
+  schedule:
+    # setiap jam, menit acak biar ga bentrok dgn job lain
+    - cron: "23 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: pip install requests
+
+      - name: Scan proxies (semua provider + GeoNode)
+        run: python scanner.py --target tokenharbor
+
+      - name: Copy hasil ke stable names
+        run: |
+          cp output/latest.txt alive.txt 2>/dev/null || true
+          cp output/latest_tokenharbor.txt tokenharbor.txt 2>/dev/null || true
+          mkdir -p history
+          TS=$(date -u +%Y%m%d_%H%M%S)
+          cp output/latest.txt history/alive_${TS}.txt 2>/dev/null || true
+          echo "scan_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          wc -l alive.txt 2>/dev/null || true
+
+      - name: Commit & push
+        run: |
+          git config user.name "gh-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "hourly update $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push
