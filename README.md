@@ -6,8 +6,7 @@
 
 | File | Isi |
 |---|---|
-| `alive.txt` | 🔥 **Proxy AKTIF** (HTTP/SOCKS5 verified, IP:PORT) — utama |
-| `tokenharbor.txt` | Proxy yang bisa membuka tokenharbor.ai (bonus) |
+| `alive.txt` | 🔥 **Proxy AKTIF** (HTTP/SOCKS verified, IP:PORT) — hanya yang hidup |
 | `history/` | Arsip hasil per jam (format YYYYMMDD_HHMMSS) |
 | `scanner.py` | Script scanner (26+ sumber) |
 
@@ -27,7 +26,7 @@ curl -O https://raw.githubusercontent.com/notthinks/proxy-lists/main/alive.txt
 
 # jalankan scanner manual
 pip install requests
-python scanner.py --target tokenharbor
+python scanner.py
 ```
 
 ## Update

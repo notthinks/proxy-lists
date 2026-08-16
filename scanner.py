@@ -1,23 +1,17 @@
 #!/usr/bin/env python3
-"""Proxy Scanner — scrape fresh lists -> alive -> (optional) target screening.
+"""Proxy Scanner — scrape fresh lists -> alive only.
 
 Usage:
-  python3 proxy_scanner.py [--target tokenharbor|blackbox|outlook] [--min-hits N]
+ python3 proxy_scanner.py [--alive-workers N]
 
 Output (timestamped) in output/:
-  proxies_alive_<TS>.txt              — proxy hidup (semua protokol)
-  proxies_<target>_<TS>.txt           — proxy yang bisa buka target (kalau --target)
-  latest.txt / latest_<target>.txt    — symlink-style pointer untuk cron pickup
+ proxies_alive_<TS>.txt — proxy hidup (semua protokol)
+ latest.txt — pointer untuk cron pickup
 """
 import argparse, concurrent.futures, glob, os, time
 import requests
 import re
 
-TARGETS = {
-    "tokenharbor": {"url": "https://tokenharbor.ai", "marks": ["token harbor", "harbor", "one api"]},
-    "blackbox":    {"url": "https://app.blackbox.ai", "marks": ["blackbox", "sign in", "start building"]},
-    "outlook":     {"url": "https://signup.live.com", "marks": ["signup", "create account", "microsoft account"]},
-}
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36"
 HDRS = {"User-Agent": UA}
 
@@ -119,25 +113,9 @@ def alive(hp, proto):
     return None
 
 
-def target_ok(px, target):
-    cfg = TARGETS[target]
-    try:
-        r = requests.get(cfg["url"], proxies={"https": px, "http": px}, timeout=10,
-                         headers=HDRS, allow_redirects=True)
-        if r.status_code == 200:
-            low = r.text.lower()
-            if any(m in low for m in cfg["marks"]):
-                return px
-    except Exception:
-        pass
-    return None
-
-
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--target", choices=list(TARGETS) + ["none"], default="none")
     ap.add_argument("--alive-workers", type=int, default=60)
-    ap.add_argument("--target-workers", type=int, default=25)
     args = ap.parse_args()
 
     os.makedirs(OUTDIR, exist_ok=True)
@@ -158,7 +136,7 @@ def main():
             if r:
                 alive_list.append(r)
             if i % 2000 == 0:
-                print(f"    [alive] {i}/{len(pool)}, hidup={len(alive_list)} ({time.time()-t0:.0f}s)", flush=True)
+                print(f" [alive] {i}/{len(pool)}, hidup={len(alive_list)} ({time.time()-t0:.0f}s)", flush=True)
     print(f"[*] HIDUP: {len(alive_list)}", flush=True)
 
     alive_path = os.path.join(OUTDIR, f"proxies_alive_{TS}.txt")
@@ -167,27 +145,8 @@ def main():
     with open(os.path.join(OUTDIR, "latest.txt"), "w") as f:
         f.write("\n".join(alive_list) + "\n")
 
-    target_path = None
-    if args.target != "none":
-        tl = []
-        with concurrent.futures.ThreadPoolExecutor(max_workers=args.target_workers) as ex:
-            futs = {ex.submit(target_ok, px, args.target): px for px in alive_list}
-            for i, f in enumerate(concurrent.futures.as_completed(futs), 1):
-                r = f.result()
-                if r:
-                    tl.append(r)
-                    print("    LOLOS:", r, flush=True)
-        print(f"[*] TARGET {args.target}: {len(tl)}", flush=True)
-        target_path = os.path.join(OUTDIR, f"proxies_{args.target}_{TS}.txt")
-        with open(target_path, "w") as f:
-            f.write("\n".join(tl) + "\n")
-        with open(os.path.join(OUTDIR, f"latest_{args.target}.txt"), "w") as f:
-            f.write("\n".join(tl) + "\n")
-
     print(f"=== SELESAI {time.time()-t0:.0f}s ===", flush=True)
     print(f"ALIVE_FILE={alive_path} total={len(alive_list)}", flush=True)
-    if target_path:
-        print(f"TARGET_FILE={target_path} total={len(target_path and tl)}", flush=True)
 
 
 if __name__ == "__main__":

@@ -28,12 +28,11 @@ jobs:
         run: pip install requests
 
       - name: Scan proxies (semua provider + GeoNode)
-        run: python scanner.py --target tokenharbor
+        run: python scanner.py
 
       - name: Copy hasil ke stable names
         run: |
           cp output/latest.txt alive.txt 2>/dev/null || true
-          cp output/latest_tokenharbor.txt tokenharbor.txt 2>/dev/null || true
           mkdir -p history
           TS=$(date -u +%Y%m%d_%H%M%S)
           cp output/latest.txt history/alive_${TS}.txt 2>/dev/null || true
